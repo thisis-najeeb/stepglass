@@ -1,0 +1,14 @@
+---
+name: Framework adapter request
+about: Ask for support for a framework StepGlass doesn't cover yet
+title: "[adapter] "
+labels: adapter-request
+---
+
+**Which framework/library?**
+
+
+**How do you currently debug agent runs with it?**
+
+
+**Would you be open to testing an early adapter?**
