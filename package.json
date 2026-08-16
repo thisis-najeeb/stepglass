@@ -1,0 +1,51 @@
+{
+  "name": "stepglass",
+  "version": "0.2.0",
+  "description": "See exactly what your AI agent did. Lightweight tracing + a local dashboard for debugging LangChain agent runs.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "stepglass": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "dashboard/public"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev:example": "node --loader ts-node/esm examples/run-agent.ts",
+    "dashboard": "node dist/cli.js dashboard",
+    "test": "node --import tsx --test test/**/*.test.ts"
+  },
+  "keywords": [
+    "langchain",
+    "ai-agents",
+    "observability",
+    "debugging",
+    "tracing",
+    "llm"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thisis-najeeb/stepglass.git"
+  },
+  "homepage": "https://github.com/thisis-najeeb/stepglass#readme",
+  "bugs": {
+    "url": "https://github.com/thisis-najeeb/stepglass/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "tsx": "^4.23.12",
+    "typescript": "^5.5.3"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@langchain/core": {
+      "optional": true
+    }
+  }
+}

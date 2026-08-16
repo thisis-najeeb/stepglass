@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StepGlass — agent flight recorder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="runs-panel">
+      <header class="brand">
+        <span class="brand-mark" aria-hidden="true">◈</span>
+        <span class="brand-name">stepglass</span>
+      </header>
+      <div class="runs-panel-sub">recorded runs</div>
+      <ul id="run-list" class="run-list" aria-label="Recorded agent runs"></ul>
+      <div id="empty-state" class="empty-state" hidden>
+        <p>No runs recorded yet.</p>
+        <p class="empty-state-hint">Point TraceLogger at this folder and run your agent — runs will show up here automatically.</p>
+      </div>
+    </aside>
+
+    <main class="detail-panel">
+      <div id="detail-placeholder" class="placeholder">
+        <span class="placeholder-mark" aria-hidden="true">◈</span>
+        <p>Select a run to inspect its trace.</p>
+      </div>
+
+      <div id="detail-content" class="detail-content" hidden>
+        <header class="run-header">
+          <div class="run-header-top">
+            <h1 id="run-title">—</h1>
+            <span id="run-status" class="status-pill">—</span>
+          </div>
+          <div id="run-meta" class="run-meta"></div>
+        </header>
+
+        <section class="strip-section">
+          <div class="strip-axis" id="strip-axis" aria-hidden="true"></div>
+          <div id="strip" class="strip" role="list" aria-label="Trace timeline"></div>
+        </section>
+
+        <section id="step-detail" class="step-detail" hidden>
+          <div class="step-detail-header">
+            <span id="step-detail-name" class="step-detail-name">—</span>
+            <span id="step-detail-duration" class="step-detail-duration"></span>
+            <button id="step-detail-close" class="close-btn" aria-label="Close step detail">×</button>
+          </div>
+          <div class="step-detail-grid">
+            <div>
+              <div class="step-detail-label">input</div>
+              <pre id="step-detail-input" class="step-detail-payload">—</pre>
+            </div>
+            <div>
+              <div class="step-detail-label" id="step-detail-output-label">output</div>
+              <pre id="step-detail-output" class="step-detail-payload">—</pre>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
