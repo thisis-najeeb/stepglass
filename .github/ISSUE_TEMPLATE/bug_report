@@ -1,0 +1,17 @@
+---
+name: Bug report
+about: Something isn't working right
+title: "[bug] "
+labels: bug
+---
+
+**What happened?**
+
+
+**What did you expect?**
+
+
+**Steps to reproduce**
+
+
+**Environment** (Node version, OS, stepglass version)
