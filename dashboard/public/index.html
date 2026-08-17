@@ -34,11 +34,25 @@
             <span id="run-status" class="status-pill">—</span>
           </div>
           <div id="run-meta" class="run-meta"></div>
+          <div id="compare-bar" class="compare-bar" hidden>
+            <span id="compare-hint" class="compare-hint"></span>
+            <select id="compare-select" class="compare-select" aria-label="Run to compare against"></select>
+            <button id="compare-btn" class="compare-toggle-btn" type="button">Compare</button>
+          </div>
         </header>
 
-        <section class="strip-section">
+        <section class="strip-section" id="strip-section">
           <div class="strip-axis" id="strip-axis" aria-hidden="true"></div>
           <div id="strip" class="strip" role="list" aria-label="Trace timeline"></div>
+        </section>
+
+        <section id="diff-view" class="diff-view" hidden>
+          <div class="diff-view-header">
+            <div class="diff-col-label" id="diff-label-a">—</div>
+            <div class="diff-col-label" id="diff-label-b">—</div>
+            <button id="diff-close" class="close-btn" aria-label="Close diff view">×</button>
+          </div>
+          <div id="diff-rows" class="diff-rows" role="list" aria-label="Step-by-step diff"></div>
         </section>
 
         <section id="step-detail" class="step-detail" hidden>
