@@ -59,4 +59,13 @@ export interface RunSummary {
   status: "running" | "completed" | "errored";
   /** Sum of estimated cost (USD) across all LLM calls in this run, when known. */
   totalCostUsd?: number;
+  /**
+   * Hash of the run's root input (see TraceLogger.setInput / hashInput).
+   * Two runs with the same inputHash were given the same input, which is
+   * what the dashboard uses to offer "compare with" — undefined if the
+   * caller never recorded an input.
+   */
+  inputHash?: string;
+  /** The run's root input, truncated for display in the run list / diff view. */
+  rootInput?: unknown;
 }
