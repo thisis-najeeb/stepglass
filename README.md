@@ -92,8 +92,49 @@ logger.finish("completed");
 
 - Every tool call: name, input, output, duration, and errors
 - Every LLM call: prompt, response, duration, and token usage/estimated cost (when the model is recognized)
+- The model and prompt version behind each LLM call, when you provide them (see below)
 - Agent actions and final output
 - Nothing leaves your machine — traces are plain JSON files in `.stepglass/`
+
+## Comparing two runs of the same input
+
+Debugging is rarely "what did this run do" — it's usually "this used to work and now it doesn't, what changed?" StepGlass keys runs by a hash of their input, so if you run the same input twice, both runs show up as comparable in the dashboard.
+
+With the LangChain adapter this is automatic — it captures the root chain's input the first time `handleChainStart` fires:
+
+```ts
+const { handler, logger } = createTraceHandler({ label: "triage-agent run" });
+await agentExecutor.invoke({ input }, { callbacks: [handler] });
+logger.finish("completed");
+```
+
+Using the framework-agnostic `TraceLogger` directly, call `setInput()` once, as early as possible:
+
+```ts
+const logger = new TraceLogger({ label: "triage-agent run" });
+logger.setInput({ ticket: "Customer says the app crashes when exporting a PDF over 50 pages." });
+```
+
+Open the dashboard, select a run, and if another run shares its input hash you'll see a **Compare** control in the header. It aligns both runs' steps and shows you exactly which step's output changed, plus the duration/cost delta for each — instead of a diff of two flat trace files, which breaks the moment one run has an extra or missing step.
+
+Try it: `npx tsx examples/mock-agent-run-diff.ts` writes two runs of the same ticket through "prompt v1" and "prompt v2", one scoring better than the other, so you can see the compare view in action immediately.
+
+## Recording model and prompt version per step
+
+A trace you can't attribute to a version isn't actionable — "it broke" is much less useful than "it broke after we shipped prompt v3". Every LLM/tool call carries a `metadata` object, and with the LangChain adapter the easiest way to set it is LangChain's own per-call metadata, which StepGlass merges into every step automatically:
+
+```ts
+await agentExecutor.invoke(
+  { input },
+  { callbacks: [handler], metadata: { promptVersion: "v3", modelVersion: "gpt-4o-2024-08-06" } }
+);
+```
+
+StepGlass also best-effort auto-detects the resolved model name from LangChain's invocation params when the integration exposes it, so you get *some* model attribution even if you pass nothing extra. Using `TraceLogger` directly, pass metadata straight into `start()`:
+
+```ts
+logger.start("llm_start", "gpt-4o", { prompt }, { promptVersion: "v3", model: "gpt-4o-2024-08-06" });
+```
 
 ## Roadmap
 
@@ -101,7 +142,8 @@ logger.finish("completed");
 - [ ] Vercel AI SDK adapter
 - [ ] Raw MCP tool-call tracing
 - [x] Cost tracking per run (token usage → $)
-- [ ] Diff view between two runs of the same agent
+- [x] Diff view between two runs of the same agent
+- [x] Model + prompt version attribution per step
 
 Contributions and framework adapter requests welcome — open an issue.
 
