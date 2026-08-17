@@ -40,10 +40,33 @@ function extractUsage(modelName: string, output: unknown): TokenUsage | undefine
  */
 export interface LangChainCompatibleHandler {
   name: string;
-  handleToolStart(tool: { name?: string; id?: string[] }, input: string, runId: string): void | Promise<void>;
+  handleChainStart(
+    chain: { id?: string[] },
+    inputs: unknown,
+    runId: string,
+    parentRunId?: string,
+    tags?: string[],
+    metadata?: Record<string, unknown>
+  ): void | Promise<void>;
+  handleToolStart(
+    tool: { name?: string; id?: string[] },
+    input: string,
+    runId: string,
+    parentRunId?: string,
+    tags?: string[],
+    metadata?: Record<string, unknown>
+  ): void | Promise<void>;
   handleToolEnd(output: unknown, runId: string): void | Promise<void>;
   handleToolError(err: unknown, runId: string): void | Promise<void>;
-  handleLLMStart(llm: { id?: string[] }, prompts: string[], runId: string): void | Promise<void>;
+  handleLLMStart(
+    llm: { id?: string[] },
+    prompts: string[],
+    runId: string,
+    parentRunId?: string,
+    extraParams?: Record<string, unknown>,
+    tags?: string[],
+    metadata?: Record<string, unknown>
+  ): void | Promise<void>;
   handleLLMEnd(output: unknown, runId: string): void | Promise<void>;
   handleLLMError(err: unknown, runId: string): void | Promise<void>;
   handleAgentAction(action: unknown): void | Promise<void>;
@@ -69,17 +92,41 @@ export function createTraceHandler(options: TraceLoggerOptions = {}): {
   // LangChain's internal runId (per-call) -> our stepId, so *_start and
   // *_end/*_error events for the same call pair up correctly.
   const stepIds = new Map<string, string>();
+  let rootInputCaptured = false;
 
   const toolNameFor = (runId: string) => stepIds.get(`name:${runId}`) ?? "tool";
   const llmNameFor = (runId: string) => stepIds.get(`name:${runId}`) ?? "llm";
 
+  /**
+   * LangChain passes the metadata from `.invoke(input, { metadata: {...} })`
+   * down to every callback for that run, which is the existing, idiomatic
+   * place to attach things like `{ promptVersion: "v3", modelVersion: "gpt-4o-2024-08-06" }`
+   * without inventing a second config channel. We merge that with whatever
+   * we can auto-detect (below) so every step carries model/prompt
+   * attribution even if the caller passes nothing extra.
+   */
+  function stepMetadata(callMetadata?: Record<string, unknown>, auto?: Record<string, unknown>): Record<string, unknown> | undefined {
+    const merged = { ...auto, ...callMetadata };
+    return Object.keys(merged).length > 0 ? merged : undefined;
+  }
+
   const handler: LangChainCompatibleHandler = {
     name: "stepglass",
 
-    handleToolStart(tool, input, runId) {
+    handleChainStart(_chain, inputs, _runId, parentRunId) {
+      // Only the root chain (no parentRunId) represents the overall run's
+      // input. AgentExecutor fires handleChainStart for nested chains too
+      // (e.g. per-step reasoning chains) — those must not overwrite the
+      // run-level input captured from the first, outermost call.
+      if (parentRunId || rootInputCaptured) return;
+      rootInputCaptured = true;
+      logger.setInput(inputs);
+    },
+
+    handleToolStart(tool, input, runId, _parentRunId, _tags, metadata) {
       const name = tool?.name ?? tool?.id?.at(-1) ?? "tool";
       stepIds.set(`name:${runId}`, name);
-      const stepId = logger.start("tool_start", name, input);
+      const stepId = logger.start("tool_start", name, input, stepMetadata(metadata));
       stepIds.set(runId, stepId);
     },
     handleToolEnd(output, runId) {
@@ -95,10 +142,17 @@ export function createTraceHandler(options: TraceLoggerOptions = {}): {
       stepIds.delete(runId);
     },
 
-    handleLLMStart(llm, prompts, runId) {
+    handleLLMStart(llm, prompts, runId, _parentRunId, extraParams, _tags, metadata) {
       const name = llm?.id?.at(-1) ?? "llm";
       stepIds.set(`name:${runId}`, name);
-      const stepId = logger.start("llm_start", name, prompts);
+      // Best-effort: most LangChain chat model integrations surface the
+      // resolved model name/version under extraParams.invocation_params.
+      // Same "detect, don't guess" approach as extractUsage() below —
+      // if it's not there, we just skip it rather than fabricating one.
+      const invocationParams = extraParams?.invocation_params as Record<string, unknown> | undefined;
+      const autoModel = invocationParams?.model ?? invocationParams?.model_name;
+      const auto = typeof autoModel === "string" ? { model: autoModel } : undefined;
+      const stepId = logger.start("llm_start", name, prompts, stepMetadata(metadata, auto));
       stepIds.set(runId, stepId);
     },
     handleLLMEnd(output, runId) {
