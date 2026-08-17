@@ -154,6 +154,48 @@ describe("TraceLogger", () => {
     assert.equal(index[loggerB.runId].status, "errored");
   });
 
+  test("setInput records an inputHash and rootInput in the index", () => {
+    const logger = new TraceLogger({ dir });
+    logger.setInput({ ticket: "PDF export crashes over 50 pages" });
+
+    const index = readIndex(dir);
+    assert.ok(index[logger.runId].inputHash);
+    assert.equal(index[logger.runId].inputHash!.length, 16);
+    assert.deepEqual(index[logger.runId].rootInput, { ticket: "PDF export crashes over 50 pages" });
+  });
+
+  test("two runs given the same input (key order aside) get the same inputHash", () => {
+    const loggerA = new TraceLogger({ dir, label: "run A" });
+    const loggerB = new TraceLogger({ dir, label: "run B" });
+    loggerA.setInput({ ticket: "T-1", priority: "high" });
+    loggerB.setInput({ priority: "high", ticket: "T-1" });
+
+    const index = readIndex(dir);
+    assert.equal(index[loggerA.runId].inputHash, index[loggerB.runId].inputHash);
+  });
+
+  test("setInput only takes effect on the first call", () => {
+    const logger = new TraceLogger({ dir });
+    logger.setInput({ ticket: "first" });
+    const firstHash = readIndex(dir)[logger.runId].inputHash;
+
+    logger.setInput({ ticket: "second, should be ignored" });
+    const secondHash = readIndex(dir)[logger.runId].inputHash;
+
+    assert.equal(firstHash, secondHash);
+    assert.deepEqual(readIndex(dir)[logger.runId].rootInput, { ticket: "first" });
+  });
+
+  test("start() attaches step metadata (e.g. promptVersion/model) to the trace event", () => {
+    const logger = new TraceLogger({ dir });
+    const stepId = logger.start("llm_start", "gpt-4.1-mini", { prompt: "hi" }, { promptVersion: "v3", model: "gpt-4.1-mini-2025-04-14" });
+    logger.end("llm_end", stepId, "gpt-4.1-mini", { text: "hello" });
+
+    const events = readTrace(dir, logger.runId);
+    const startEvent = events.find((e) => e.type === "llm_start");
+    assert.deepEqual(startEvent!.metadata, { promptVersion: "v3", model: "gpt-4.1-mini-2025-04-14" });
+  });
+
   test("index reflects the final eventCount for a run", () => {
     const logger = new TraceLogger({ dir });
     const stepId = logger.start("tool_start", "a");
