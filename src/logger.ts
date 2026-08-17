@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, appendFileSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { TraceEvent, TraceEventType, RunSummary, TokenUsage } from "./types.js";
+import { hashInput } from "./hash.js";
 
 const DEFAULT_DIR = ".stepglass";
 const MAX_PAYLOAD_CHARS = 4000;
@@ -43,6 +44,7 @@ export class TraceLogger {
   private errorCount = 0;
   private totalCostUsd: number | undefined;
   private startedAt: string;
+  private inputHash: string | undefined;
 
   constructor(options: TraceLoggerOptions = {}) {
     this.runId = randomUUID();
@@ -59,6 +61,22 @@ export class TraceLogger {
       stepId: "root",
     });
     this.updateIndex({ status: "running", label: options.label });
+  }
+
+  /**
+   * Records the run's root input and derives a stable hash from it. Two
+   * runs with matching hashes are "the same input, run twice" — that's
+   * what makes them valid candidates for the dashboard's diff view.
+   *
+   * Call this once, as early as possible in the run (the LangChain adapter
+   * calls it automatically from the root chain's start event, before any
+   * tool or LLM calls happen). Only the first call takes effect, so a
+   * nested chain re-invoking this later can't clobber the run-level input.
+   */
+  setInput(input: unknown): void {
+    if (this.inputHash) return;
+    this.inputHash = hashInput(input);
+    this.updateIndex({ inputHash: this.inputHash, rootInput: truncate(input) });
   }
 
   /** Record the start of a step (tool call, llm call, etc). Returns a stepId to pass to end/error. */
